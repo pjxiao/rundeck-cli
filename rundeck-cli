@@ -1,0 +1,86 @@
+#!/bin/bash
+
+RCFILE="$HOME/.rundeckclirc"
+NAME="rundeck-cli"
+
+
+# Authenticate and send a request to a API endpoint
+request()
+{
+    [ ! -f ${RCFILE} ] && return 1
+    source ${RCFILE}
+    [ -n "${RDEndpoint}" -a -n "${RDToken}" ] || return 1
+
+    # Resouce path must start with "/"
+    [ -n "${1}" -a "${1:0:1}" == '/' ] || return 70
+
+    curl -v -L -H "X-Rundeck-Auth-Token: ${RDToken}" "${RDEndpoint}${1}"
+    return $?
+}
+
+
+# Print usage
+usage()
+{
+    cat <<EOL
+Usage: $0 <COMMAND> [OPTION]
+
+    COMMAND:
+        init                    Initialize connecting settings.
+        get-job <ID> [FORMAT]   Export a job <ID>. <FORMAT> is "xml" or "yaml". Default "yaml"
+EOL
+}
+
+
+# Get a job definition
+get-job()
+{
+    [ -n "$2" ] || return 1
+    request "/api/1/job/${2}?format=${3:-yaml}"
+    return $?
+}
+
+
+# Initaialize connecting settings
+init()
+{
+    [ -f "${RCFILE}" ] && source ${RCFILE}
+    read -p "Endpoint [${RDEndpoint:-None}]: " tmp_rd_endpoint
+    read -p "Token [${RDToken:-None}]: " tmp_rd_token
+
+    [ -n "${tmp_rd_endpoint}" ] && RDEndpoint=${tmp_rd_endpoint}
+    [ -n "${tmp_rd_token}" ] && RDToken=${tmp_rd_token}
+
+    [ -n "${RDEndpoint}" ] && [ -n "${RDToken}" ] && (
+        cat <<EOL > ${RCFILE}
+# AUTO GENERATED
+RDEndpoint=${RDEndpoint}
+RDToken=${RDToken}
+EOL
+    )
+    return 1
+}
+
+
+# Entry point
+main()
+{
+    case "$1" in
+        init)
+            init $*;;
+        get-job)
+            get-job $*;;
+        usage)
+            usage $*;;
+        *)
+            usage $*
+            exit 1;;
+    esac
+    exit $?
+}
+
+
+# Call entry point when this script is called directly
+[ "$(echo -n ${0} | rev | cut -d'/' -f1 | rev)" == "${NAME}" ] && \
+    main $* ||\
+    true
