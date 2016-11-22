@@ -28,6 +28,7 @@ Usage: $0 <COMMAND> [OPTION]
     COMMAND:
         init                        Initialize connecting settings.
         list-jobs <PROJECT>         List jobs for project.
+	list-running-jobs <PROJECT> List running jobs for project.
         get-job <ID> [FORMAT]       Export a job <ID>. <FORMAT> is "xml" or "yaml". Default "yaml"
         import-jobs <PATH> <FORMAT> Import <FORMAT> types jobs defined in <PATH>.
 EOL
@@ -51,6 +52,14 @@ list-jobs()
         awk '$1 == "<job" { print $2 }' | \
         sed -e "s|^id='\([^']\+\)'.*$|- \1|"
     return $?
+}
+
+# List running jobs for project
+list-running-jobs()
+{
+	[ -n "$2" ] || return 1
+    	request "/api/18/project/${2}/executions/running" | grep '\(execution\|<name>\)'
+    	return $?
 }
 
 
@@ -89,7 +98,7 @@ main()
 {
     cmd=""
     case "$1" in
-        init|get-job|list-jobs|usage|import-jobs)
+        init|get-job|list-jobs|list-running-jobs|usage|import-jobs)
             ${1} $*
             exit $?;;
         *)
